@@ -1,0 +1,34 @@
+&CONTROL
+calculation = "scf"
+disk_io = 'none'
+pseudo_dir = '/opt/QEpot/SSSP_efficiency_pseudos/'
+etot_conv_thr = 1.0d-6
+forc_conv_thr = 1.0d-6
+tprnfor = .true.
+tstress = .true.
+verbosity = 'high'
+/
+!controlend
+
+&SYSTEM
+occupations = "smearing"
+nat = 2
+smearing = "gaussian"
+ntyp = 1
+ibrav = 0
+ecutwfc = 90
+ecutrho = 1080
+degauss =   2.2049585400d-02
+!systemend
+/
+
+&ELECTRONS
+conv_thr =   6.0000000000d-10
+electron_maxstep = 80
+mixing_beta =   4.0000000000d-01
+/
+K_POINTS {automatic}
+ATOMIC_SPECIES
+ATOMIC_POSITIONS {angstrom}
+CELL_PARAMETERS {angstrom}
+!End
