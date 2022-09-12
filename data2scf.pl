@@ -13,7 +13,7 @@ my $user = "zhi";
 
 my $slurmbatch = "186.sh"; #slurm filename
 my $QE_path = "/opt/QEGCC_MPICH3.4.2/bin/pw.x";
-my @cp_path = `find $currentPath/Cu-fitting -maxdepth 1 -type d -name "*"`;
+my @cp_path = `find $currentPath/CrNi-fitting -maxdepth 1 -type d -name "*"`;
 #
 #my @cp_path = `ls $currentPath/Cu-scf`;
 # my @initial_data = `ls $currentPath/Cu-scf`;
@@ -28,7 +28,7 @@ my $optbatch = "SCF.in";
 
 
 
-my @myelement = sort ("Cu");
+my @myelement = sort ("Cr","Ni");
 my $myelement = join ('',@myelement);
 my $types = @myelement;
 
@@ -269,14 +269,23 @@ sub ibrav0
         }
 
     # ###ATOMIC_POSITION###
-        if(m/\d+\s+(\d+)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s?-?\d?\s?-?\d?\s?-?\d?$/gm) #coord
-        {
-            my $movex = $2 - $move;
-            my $movey = $3 - $move;
-            my $movez = $4 - $move; 
-            `sed -i '/ATOMIC_POSITIONS {angstrom}/a $myelement{$1} $movex $movey $movez' $foldername/$prefix.in` ;
+    #     if(m/\d+\s+(\d+)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s?-?\d?\s?-?\d?\s?-?\d?$/gm) #coord
+    #     {
+    #         my $movex = $2 - $move;
+    #         my $movey = $3 - $move;
+    #         my $movez = $4 - $move; 
+    #         `sed -i '/ATOMIC_POSITIONS {angstrom}/a $myelement{$1} $movex $movey $movez' $foldername/$prefix.in` ;
+    # }
     }
-    }
+        my @coord = grep {if(m/\d+\s+(\d+)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s?-?\d?\s?-?\d?\s?-?\d?$/gm){
+        $_ = [$1,$2,$3,$4];
+        my $movex = $2 - $move;
+        my $movey = $3 - $move;
+        my $movez = $4 - $move; 
+        `sed -i '/ATOMIC_POSITIONS {angstrom}/a $myelement{$1} $movex $movey $movez' $foldername/$prefix.in` ;
+        # print $1 ; 
+        # print "$2\n" ;
+       }} reverse @data;
         
         `sed -i '/CELL_PARAMETERS {angstrom}/a  $xz $yz $lz' $foldername/$prefix.in` ;
         `sed -i '/CELL_PARAMETERS {angstrom}/a  $xy $ly 0' $foldername/$prefix.in` ;
