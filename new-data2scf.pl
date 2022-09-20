@@ -13,14 +13,23 @@ my $user = "zhi";
 
 my $slurmbatch = "186.sh"; #slurm filename
 my $QE_path = "/opt/QEGCC_MPICH3.4.2/bin/pw.x";
-my @cp_path = `find $currentPath/Cr-fitting -maxdepth 1 -type d -name "*"`;
-#
+my @cp_path = `find $currentPath/CrCuNiSiZn-fitting -maxdepth 1 -type d -name "*"`;
+# my @cp_path = split("\n", $cp_path);
+# @cp_path = sort @cp_path;
+# my $cp_paths = `find $currentPath/CrCuNiSiZn-fitting -maxdepth 2  -name "*.sout"`;
+# my @cp_paths = split("\n", $cp_paths);
+# @cp_paths = sort @cp_paths;
+# print "$cp_paths";
+# my @cp_pathpath = map (($_ =~ m/(.*)\/.*.$/gm),@cp_path);
+# my @cp_pathname = map (($_ =~ m/.*\/(.*)./gm),@cp_path);
+# print "@cp_pathpath\n";
+# print "@cp_pathname\n";
 #my @cp_path = `ls $currentPath/Cu-scf`;
-# my @initial_data = `ls $currentPath/Cu-scf`;
+#my @initial_data = `ls $currentPath/Cu-scf`;
 # print @cp_path;
-# print @initial_data;
+#print @initial_data;
 chomp @cp_path;
-# chomp @initial_data;
+#chomp @initial_data;
 #my $cp_path = "/home/zhi/Deep-single-scf/Ge-single/Ge-mp-32"; #the path where the data at;the last '/' should be deleate 
 # `cp $cp_path/ori.in SCF.in`;
 
@@ -28,10 +37,16 @@ my $optbatch = "SCF.in";
 
 
 
-#my @myelement = sort ("Zn","Si","Ni");#"Cr","Cu","Zn","Si","Ni"
-my @myelement =  ("Cr");#"Cr","Cu","Zn","Si","Ni"
+my @myelement = sort ("Cr","Cu","Ni","Si","Zn");#,"Cu","Ni","Si","Zn"
 my $myelement = join ('',@myelement);
 my $types = @myelement;
+
+
+
+# my @myelement = sort ("Cr","Cu","Ni","Si","Zn");
+# my $myelement = join ('',@myelement);
+# my $types = @myelement;
+
 
 my $cal = "scf";
 my $nstep = 100;
@@ -56,6 +71,7 @@ my $tstress = "tstress = .true.";
 
 my %HEA;
 my %myelement;
+my %ele;
 my %pm;
 my @rho_cutoff;
 my @cutoff;
@@ -105,7 +121,6 @@ my @element = $myelement;
 
 
 
-
 #for my $initial_data(@initial_data){
 for my $cp_path(@cp_path){
     my @datafile = sort `find $cp_path  -maxdepth 1 -name "scale_*-*.data"`;
@@ -116,8 +131,9 @@ for my $cp_path(@cp_path){
         my ($data_num) = $datafile[$id] =~ (m/.*\/(.*)\/.*.data/);
         my ($data_name) = $datafile[$id] =~ (m/.*\/(.*).data/);
         my ($data_folder) = $datafile[$id] =~ (m/.*\/(scale_.*)-.*.data/); 
-        my ($data_ele) = $datafile[$id] =~ (m/.*\/(.*)\/.*\/.*.data/); 
+        my ($data_ele) = $datafile[$id] =~ (m/.*\/.*\/(.*)\/.*.data/); 
         my @ele = $data_ele =~/([A-Z]{1}[a-z]{0,1})/gm;
+        # print "@ele";
         my $prefix = "$data_path/$data_name";
         my $foldername = "$currentPath/$myelement/SCF/$data_num/$data_folder";
 
@@ -128,8 +144,8 @@ for my $cp_path(@cp_path){
         `cp $currentPath/$optbatch $foldername/$data_name.in`;
 
         &setting($foldername,$data_name,$cp_path,@ele);
-         print "$data_name\n";
-         &ibrav0($foldername,$data_name,"$prefix.data");
+        #  print "$data_name\n";
+         &ibrav0($foldername,$data_name,"$prefix.data",@ele);
          &slurm($foldername,$data_name);
 
         }
@@ -145,7 +161,7 @@ sub lmp2data
     close $temp;
     
     my @ele = $ele =~/([A-Z]{1}[a-z]{0,1})/gm;
-    print @ele;
+    # print "@ele";
 
     my $data = join ("",@data);
     #my  $regax ="xy\\s+x\\s+yz\\s+";
@@ -162,15 +178,17 @@ sub setting
 {
     (my $foldername ,my $prefix,my $cp_path,my @ele) = @_;
     my $elelegth = @ele;
-    my @eles = reverse (@ele);
-    for(@eles){
-    `sed -i '/ATOMIC_SPECIES/a $_  $HEA{$_}{mass}  $HEA{$_}{jsonname}' $foldername/$prefix.in`;
-    }
+    # print "@ele";
+    
+    
     ###ATOMIC_SPECIES### 
+    my @eles = reverse sort (@ele);
         # for(@ele){
         # `sed -i '/ATOMIC_SPECIES/a $_  $HEA{$_}{mass}  $HEA{$_}{jsonname}' $foldername/$prefix.in`;
         # }
-        
+        for(@eles){
+        `sed -i '/ATOMIC_SPECIES/a $_  $HEA{$_}{mass}  $HEA{$_}{jsonname}' $foldername/$prefix.in`;
+        }
         # for(@ele){
         # `sed -i '/ATOMIC_SPECIES/a $_  $HEA{$_}{mass}  Ag_ONCV_PBE-1.0.oncvpsp.upf' $foldername/$prefix.in`;
         # }
@@ -182,6 +200,7 @@ sub setting
         my $r = $i-1;
         $element{$myelement[$r]} = $i;
         }
+        # print"$i";
         for(0..$#magnetization-$types) {
         my @Aftermagnetization = $magnetization[-$_];
         for(@Aftermagnetization){
@@ -198,16 +217,25 @@ sub setting
         `sed -i 's:^ntyp.*:ntyp = $elelegth:' $foldername/$prefix.in`;
 
     ### Kpoints ###-----------------------------------------------------------------------------
-################################################################################################
+   
     chdir("$cp_path");
+    # print "$cp_path";
     my @sout = `cat kpoints.dat`;
     my @totalkpoint = grep {if(m/(\d*\s+\d*\s+\d*\s+\d*\s+\d*\s+\d*)/gm){$_ = $1;}} @sout;
     #print @totalkpoint;
     my $kpoints = @totalkpoint;
     `sed -i '/K_POINTS.*/a @totalkpoint' $foldername/$prefix.in`;
-    print @totalkpoint;
+    # print @totalkpoint;
     chdir("$currentPath");
-################################################################################################
+    # chdir("$cp_path");
+    # my @orisout = `cat ori.sout`;
+    # my @totalelements = grep {if(m/^\s+([A-Z]{1}[a-z]{0,1})\s+\d*.\d*\d*\s+\d*.\d*\s+[A-Z]{1}[a-z]{0,1}\(\d*\s+\d*.\d*\)$/gm){$_ = $1;}} @orisout;
+    # #print @totalkpoint;
+    # # my $totalelements = @totalelements;
+    # # print"@totalelements";
+    # # print @totalkpoint;
+    # chdir("$currentPath");
+
     ### tstress tprnfor ###--------------------------------------------------------------------
     `sed -i '/nstep.*/a $tstress' $foldername/$prefix.in`;
     `sed -i '/nstep.*/a $tprnfor' $foldername/$prefix.in`;
@@ -215,14 +243,41 @@ sub setting
     `cp $cp_path/dpE2expE.dat $foldername/dpE2expE.dat`;
     `cp $cp_path/elements.dat $foldername/elements.dat`;
     `cp $cp_path/kpoints.dat $foldername/kpoints.dat`;
+    # print  "$cp_path";
 }
+
 sub ibrav0
 {
-    (my $foldername , my $prefix , my $data) = @_;
+    (my $foldername , my $prefix , my $data ,my @ele  ) = @_;
+    # print "@ele";
+
+
+    # my $ele = join ('',@ele);
+    # my %ele;
+    # for (my $ii=1; $ii<=@ele; $ii++){
+    # my $rr = $ii-1;
+    # $ele{$ele[$rr]}= $ii;
+    # print "$ii";
+    # } ###If DPGEN element*N
+
+
+  
     open my $temp ,"< $data";
     my @data =<$temp>;
     close $temp;
+    # print "@ele";
+    my @myelements = sort @ele;
+    my $myelements = join ('',@myelements);
+    # my @myelementss = split("\n",$myelements);
+    my %elements;
+    for (my $ii=1; $ii<=@myelements; $ii++){
+        my $rr = $ii-1;
+        $elements{$myelements[$rr]} = $ii;
+        # print"!!$myelements[$rr]";
+        }
 
+    # print "@myelementss\n";
+    
     `sed -i 's:ATOMIC_POSITIONS.*:ATOMIC_POSITIONS {angstrom}:' $foldername/$prefix.in`;
     `sed -i 's:CELL_PARAMETERS.*:CELL_PARAMETERS {angstrom}:' $foldername/$prefix.in`;
     my $atoms;
@@ -235,6 +290,7 @@ sub ibrav0
     my $yz = 0;
 
     for(@data){
+        # print "@data";
     ###atoms###
         if(m/(\d+)\s+atoms/s){ 
         $atoms = $1;
@@ -245,7 +301,8 @@ sub ibrav0
             $move = $1;
         }
     }
-    for (@data){
+    for (@data){       
+
         ###### xlo #######
         ### 0.0 2.84708541500004 xlo xhi
         if(m/(\-?\d*\.*\d*\w*[+-]?\d*)\s+(\-?\d*\.*\d*\w*[+-]?\d*)\s+xlo/s){
@@ -270,28 +327,49 @@ sub ibrav0
         }
 
     # ###ATOMIC_POSITION###
-    #     if(m/\d+\s+(\d+)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s?-?\d?\s?-?\d?\s?-?\d?$/gm) #coord
-    #     {
-    #         my $movex = $2 - $move;
-    #         my $movey = $3 - $move;
-    #         my $movez = $4 - $move; 
-    #         `sed -i '/ATOMIC_POSITIONS {angstrom}/a $myelement{$1} $movex $movey $movez' $foldername/$prefix.in` ;
-    # }
-    }
-        my @coord = grep {if(m/\d+\s+(\d+)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s?-?\d?\s?-?\d?\s?-?\d?$/gm){
-        $_ = [$1,$2,$3,$4];
-        my $movex = $2 - $move;
-        my $movey = $3 - $move;
-        my $movez = $4 - $move; 
+   
+
+        if(m/\d+\s+(\d+)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s?-?\d?\s?-?\d?\s?-?\d?$/gm) #coord
+        {   
+    #     #     my $ele = join ('',@ele);
+    #         # print "$ele";
+    #     #     my @ele = split("\n",$ele);
+    #     #     @ele =  sort @ele;
+    #     #     my %ele;
+    #     #     for (my $is=1; $is<=@ele; $is++){
+    #     #     my $rs = $is-1;
+    #     #     $ele{$ele[$rs]} = $is;
+    #     #     }
+    #     #     # print "$is";
+    #     #     #  print "$ele[$rs]";
+    #     # #    print "!!@ele";
+            my $movex = $2 - $move;
+            my $movey = $3 - $move;
+            my $movez = $4 - $move; 
+    
         `sed -i '/ATOMIC_POSITIONS {angstrom}/a $myelement{$1} $movex $movey $movez' $foldername/$prefix.in` ;
-        # print $1 ; 
-        # print "$2\n" ;
-       }}  reverse @data;
+
+        
+
+    }
+
+    }
+    
+        
+        # my @coord = grep {if(m/\d+\s+(\d+)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s+(\-?\d*.?\d*e*[+-]*\d*)\s?-?\d?\s?-?\d?\s?-?\d?$/gm){
+        # $_ = [$1]; 
+        # # my $ele = join ('',@ele);
+        # my $movex = $2 - $move;
+        # my $movey = $3 - $move;
+        # my $movez = $4 - $move; 
+        # for(0..$#data){
+        # `sed -i '/ATOMIC_POSITIONS {angstrom}/a $elements{$1} $movex $movey $movez' $foldername/$prefix.in` ;
+        # }
+        # }}  @data;
         
         `sed -i '/CELL_PARAMETERS {angstrom}/a  $xz $yz $lz' $foldername/$prefix.in` ;
         `sed -i '/CELL_PARAMETERS {angstrom}/a  $xy $ly 0' $foldername/$prefix.in` ;
         `sed -i '/CELL_PARAMETERS {angstrom}/a  $lx 0 0' $foldername/$prefix.in` ;
-
 }
 sub slurm
 {
@@ -307,8 +385,8 @@ sub slurm
  #`sed -i '/mpiexec.* /opt/QEGCC/bin/pw.x/d' $slurmbatch`;
     `cp $slurmbatch $foldername/$prefix.sh`;
     chdir("$foldername");
-    system("sbatch $prefix.sh");
-    print qq(sbatch $foldername/$prefix.sh\n);
+    #system("sbatch $prefix.sh");
+    # print qq(sbatch $foldername/$prefix.sh\n);
     chdir("$currentPath");
 
 }
